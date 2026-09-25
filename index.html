@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StudyTracker - Personalized Timetable Tracker</title>
-
+    
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 24L15 42l35 18 35-18L50 24zm-22 28v16c0 6 10 11 22 11s22-5 22-11V52' fill='none' stroke='%23ffffff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/><circle cx='80' cy='58' r='4' fill='%23a5b4fc'/></svg>">
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -98,7 +98,7 @@
                 </div>
 
                 <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium">
-                    <i class="fa-solid fa-cloud text-indigo-400"></i>
+                    <i class="fa-solid fa-cloud text-indigo-400" id="syncIcon"></i>
                     <span id="syncStatus">Local Mode</span>
                     <button id="openConfigBtn" class="ml-1 text-slate-400 hover:text-white transition-colors" title="Firebase Settings">
                         <i class="fa-solid fa-gear"></i>
@@ -346,7 +346,7 @@
             selectedNewColor: '#6366f1',
             logs: {}, 
             db: null,
-            userId: 'user_default',
+            unsubscribeListener: null,
             chartInstance: null
         };
 
@@ -441,6 +441,37 @@
             }
         }
 
+        function listenToFirebaseUpdates() {
+            if (!state.db) return;
+            const { collection, onSnapshot } = window.FirebaseSDK;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'study-tracker-app';
+            const logsColRef = collection(state.db, 'artifacts', appId, 'public', 'data', 'daily_logs');
+
+            if (state.unsubscribeListener) {
+                state.unsubscribeListener();
+            }
+
+            state.unsubscribeListener = onSnapshot(logsColRef, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const dateStr = change.doc.id;
+                    const data = change.doc.data();
+                    if (change.type === "added" || change.type === "modified") {
+                        if (data && data.sessions) {
+                            state.logs[dateStr] = data.sessions;
+                        }
+                    } else if (change.type === "removed") {
+                        delete state.logs[dateStr];
+                    }
+                });
+                saveLocalData();
+                renderTimetable();
+                document.getElementById('syncStatus').textContent = 'Cloud Live';
+            }, (error) => {
+                console.error("Firestore Listen Error:", error);
+                document.getElementById('syncStatus').textContent = 'Sync Error';
+            });
+        }
+
         async function initFirebase() {
             const syncStatusEl = document.getElementById('syncStatus');
             let config = null;
@@ -475,6 +506,9 @@
                 state.db = getFirestore(app);
                 syncStatusEl.textContent = 'Cloud Active';
                 showToast('Firebase DB Connected');
+
+                // Start real-time sync listener across devices
+                listenToFirebaseUpdates();
             } catch (error) {
                 console.error('Firebase Init Error:', error);
                 syncStatusEl.textContent = 'Cloud Error';
@@ -485,23 +519,19 @@
             if (!rawText || !rawText.trim()) return null;
             let text = rawText.trim();
 
-            // Strip leading/trailing quote marks if whole string was enclosed in double quotes
             if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
                 text = text.slice(1, -1).trim();
             }
 
-            // 1. Direct JSON parse attempt
             try {
                 return JSON.parse(text);
             } catch (e) {}
 
-            // 2. Targeted Key-Value extraction regex (Handles JS comments, code declarations, missing quotes, etc.)
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
             const config = {};
             let foundCount = 0;
 
             keys.forEach(key => {
-                // Regex matches: key: "val" | key: 'val' | "key": "val" | 'key': 'val'
                 const reg = new RegExp(`['"]?${key}['"]?\\s*:\\s*['"]([^'"]+)['"]`);
                 const match = text.match(reg);
                 if (match && match[1]) {
@@ -1004,6 +1034,10 @@
                 localStorage.removeItem('studytracker_firebase_config');
                 document.getElementById('firebaseConfigInput').value = '';
                 modal.classList.add('hidden');
+                if (state.unsubscribeListener) {
+                    state.unsubscribeListener();
+                    state.unsubscribeListener = null;
+                }
                 state.db = null;
                 document.getElementById('syncStatus').textContent = 'Local Mode';
                 showToast('Firebase Config Cleared');
