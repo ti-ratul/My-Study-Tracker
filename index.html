@@ -329,19 +329,33 @@
 
         // Default Subject Colors
         const DEFAULT_SUBJECT_COLORS = {
-            'Physics': '#6366f1',
-            'Chemistry': '#10b981',
-            'Higher Math': '#f59e0b',
-            'Biology': '#ec4899',
             'ICT': '#06b6d4',
-            'English': '#8b5cf6',
-            'Bangla': '#f97316'
+            'Physics 1st': '#6366f1',
+            'Physics 2nd': '#6366f1',
+            'Chemistry 1st': '#10b981',
+            'Chemistry 2nd': '#34d399',
+            'Higher Math 1st': '#f59e0b',
+            'Higher Math 2nd': '#eab308',
+            'Biology 1st': '#ec4899',
+            'Biology 2nd': '#ec4899',
+            'English 1st': '#8b5cf6',
+            'English 2nd': '#6366f1',
+            'Bangla 1st': '#f97316',
+            'Bangla 2nd': '#f97316'
         };
 
         // App Initial State
         let state = {
             selectedDate: getInitialDate(),
-            subjects: ['Physics', 'Chemistry', 'Higher Math', 'Biology', 'ICT', 'English', 'Bangla'],
+            subjects: [
+                'ICT',
+                'Physics 1st', 'Physics 2nd',
+                'Chemistry 1st', 'Chemistry 2nd',
+                'Higher Math 1st', 'Higher Math 2nd',
+                'Biology 1st', 'Biology 2nd',
+                'English 1st', 'English 2nd',
+                'Bangla 1st', 'Bangla 2nd'
+            ],
             subjectColors: { ...DEFAULT_SUBJECT_COLORS },
             selectedNewColor: '#6366f1',
             logs: {}, 
