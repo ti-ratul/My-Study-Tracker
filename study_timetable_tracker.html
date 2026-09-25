@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyTracker - Personalized Timetable Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        .checkbox-anim:checked + div {
+            background-color: #4f46e5;
+            border-color: #6366f1;
+        }
+    </style>
+
+    <script type="module">
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.FirebaseSDK = {
+            initializeApp, getApps, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, getDoc, setDoc, onSnapshot, collection
+        };
+    </script>
+</head>
+<body class="min-h-screen custom-scrollbar pb-12">
+
+    <!-- Header Navbar -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800 bg-slate-900/90 px-4 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-graduation-cap text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+                        StudyTracker
+                    </h1>
+                    <p class="text-xs text-slate-400">Oct 1, 2026 – Dec 30, 2027 Tracker</p>
+                </div>
+            </div>
+
+            <!-- Current Streak & Dynamic Date Controller -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg text-amber-400">
+                    <i class="fa-solid fa-fire text-amber-500 animate-pulse"></i>
+                    <span id="streakCount" class="font-bold text-sm">0 Days Streak</span>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium">
+                    <i class="fa-solid fa-cloud text-indigo-400"></i>
+                    <span id="syncStatus">Local Mode</span>
+                    <button id="openConfigBtn" class="ml-1 text-slate-400 hover:text-white transition-colors" title="Firebase Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 lg:px-8 pt-6 space-y-6">
+
+        <!-- Top Date Navigation Bar -->
+        <div class="glass-panel p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <button id="prevDateBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                
+                <input type="date" id="datePicker" min="2026-10-01" max="2027-12-30" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-semibold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                
+                <button id="nextDateBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+
+                <button id="todayBtn" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-md">
+                    Oct 1, 2026
+                </button>
+            </div>
+
+            <div class="flex items-center gap-3 text-sm">
+                <span id="selectedDayName" class="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20">
+                    Sunday–Thursday Schedule
+                </span>
+                <span id="octStatusBadge" class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <i class="fa-solid fa-calendar-check mr-1"></i> Oct '26 – Dec '27
+                </span>
+            </div>
+        </div>
+
+        <!-- Main Workspace Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Left Column: Daily Schedule Tracker (8 Cols) -->
+            <div class="lg:col-span-8 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-indigo-400"></i>
+                        Daily Timetable Checklist
+                    </h2>
+                    <span id="dayCompletionText" class="text-xs font-semibold text-slate-400">
+                        0/0 Sessions Done
+                    </span>
+                </div>
+
+                <!-- Daily Sessions Container -->
+                <div id="timetableContainer" class="space-y-4">
+                    <!-- Session cards dynamically populated here -->
+                </div>
+            </div>
+
+            <!-- Right Column: Stats, Subjects & Security (4 Cols) -->
+            <div class="lg:col-span-4 space-y-6">
+
+                <!-- Overall Progress Summary Card -->
+                <div class="glass-panel p-5 rounded-2xl space-y-4">
+                    <h3 class="font-bold text-slate-200 text-sm flex items-center justify-between">
+                        <span><i class="fa-solid fa-chart-line text-indigo-400 mr-2"></i>Tracker Overview</span>
+                        <span class="text-xs text-slate-400">Since Oct 1</span>
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-center">
+                            <span class="text-xs text-slate-400 block mb-1">Total Hours</span>
+                            <span id="statTotalHours" class="text-xl font-extrabold text-indigo-400">0 hrs</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-center">
+                            <span class="text-xs text-slate-400 block mb-1">Completion Rate</span>
+                            <span id="statCompletionRate" class="text-xl font-extrabold text-emerald-400">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- Subject Breakdown Chart -->
+                    <div class="pt-2">
+                        <h4 class="text-xs font-semibold text-slate-400 mb-2">Subject Hours Breakdown</h4>
+                        <div class="h-44 relative flex items-center justify-center">
+                            <canvas id="subjectChart"></canvas>
+                        </div>
+
+                        <!-- Subject Study Hours Detailed Breakdown -->
+                        <div id="subjectHoursList" class="mt-3 space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                            <!-- Dynamic subject hours rows rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subjects Selection & Management Box -->
+                <div class="glass-panel p-5 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-book-bookmark text-indigo-400"></i>
+                            My Subjects List
+                        </h3>
+                        <button id="addSubjectToggleBtn" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-semibold">
+                            <i class="fa-solid fa-plus"></i> Add Subject
+                        </button>
+                    </div>
+
+                    <!-- Add Subject Inline Input with Color Selection -->
+                    <div id="addSubjectForm" class="hidden space-y-3 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <input type="text" id="newSubjectInput" placeholder="Subject Name (e.g., Physics)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        
+                        <!-- Subject Color Picker & Presets -->
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] text-slate-400 font-medium">Select Subject Color:</label>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <div id="colorPresets" class="flex items-center gap-1.5">
+                                    <button type="button" data-color="#6366f1" class="color-preset-btn w-6 h-6 rounded-full bg-[#6366f1] ring-2 ring-white/80 transition-transform hover:scale-110"></button>
+                                    <button type="button" data-color="#10b981" class="color-preset-btn w-6 h-6 rounded-full bg-[#10b981] transition-transform hover:scale-110"></button>
+                                    <button type="button" data-color="#f59e0b" class="color-preset-btn w-6 h-6 rounded-full bg-[#f59e0b] transition-transform hover:scale-110"></button>
+                                    <button type="button" data-color="#ec4899" class="color-preset-btn w-6 h-6 rounded-full bg-[#ec4899] transition-transform hover:scale-110"></button>
+                                    <button type="button" data-color="#06b6d4" class="color-preset-btn w-6 h-6 rounded-full bg-[#06b6d4] transition-transform hover:scale-110"></button>
+                                    <button type="button" data-color="#8b5cf6" class="color-preset-btn w-6 h-6 rounded-full bg-[#8b5cf6] transition-transform hover:scale-110"></button>
+                                    <button type="button" data-color="#f97316" class="color-preset-btn w-6 h-6 rounded-full bg-[#f97316] transition-transform hover:scale-110"></button>
+                                </div>
+                                <div class="relative flex items-center">
+                                    <input type="color" id="customColorPicker" value="#6366f1" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-1">
+                            <button id="saveSubjectBtn" class="px-3.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-500 transition-colors shadow-md">
+                                Add Subject
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Subject Badges List -->
+                    <div id="subjectBadgesContainer" class="flex flex-wrap gap-2">
+                        <!-- Dynamic subject tags -->
+                    </div>
+                </div>
+
+                <!-- GitHub Safety Banner -->
+                <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-amber-500 space-y-2">
+                    <div class="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                        <i class="fa-solid fa-shield-halved text-sm"></i>
+                        <span>GitHub Push Protection</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        To safely publish on GitHub Pages without leaking API keys, use the <strong>Firebase Settings</strong> button. Your keys are saved in your local browser and never pushed to GitHub code!
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Firebase Settings Modal -->
+    <div id="firebaseModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-database text-indigo-400"></i>
+                    Firebase Cloud Database Config
+                </h3>
+                <button id="closeConfigBtn" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Paste your Firebase Project Configuration here. This is kept inside your browser's Local Storage so your <code>index.html</code> code remains safe for public GitHub commits!
+            </p>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-300 font-medium mb-1">Firebase Config (JSON)</label>
+                    <textarea id="firebaseConfigInput" rows="7" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "my-study-app.firebaseapp.com",
+  "projectId": "my-study-app",
+  "storageBucket": "my-study-app.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abcdef"
+}'></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button id="clearConfigBtn" class="px-3 py-2 bg-slate-800 text-xs text-rose-400 rounded-xl hover:bg-slate-700 font-medium">
+                    Clear Key
+                </button>
+                <button id="saveConfigBtn" class="px-4 py-2 bg-indigo-600 text-xs text-white rounded-xl hover:bg-indigo-500 font-semibold shadow-md">
+                    Connect Firebase
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-indigo-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs">
+        <i class="fa-solid fa-circle-check text-indigo-400 text-base" id="toastIcon"></i>
+        <span id="toastMsg">Action completed successfully</span>
+    </div>
+
+    <script>
+        // Schedule Definitions based on custom timetable slots
+        const SCHEDULES = {
+            weekday: [
+                { id: 'wd_s1', time: '6:00–7:30', duration: 1.5, title: 'Study Session 1 — Main subject' },
+                { id: 'wd_s2', time: '7:50–9:20', duration: 1.5, title: 'Study Session 2 — Second subject' },
+                { id: 'wd_rev', time: '9:30–10:00', duration: 0.5, title: 'MCQ / CQ / revision' }
+            ],
+            friday: [
+                { id: 'fri_s1', time: '7:30–9:30', duration: 2.0, title: 'Study Session 1' },
+                { id: 'fri_s2', time: '10:00–12:00', duration: 2.0, title: 'Study Session 2' },
+                { id: 'fri_s3', time: '4:30–6:30', duration: 2.0, title: 'Study Session 3' },
+                { id: 'fri_rev', time: '9:15–10:15', duration: 1.0, title: 'Weekly revision + question solving' }
+            ],
+            saturday: [
+                { id: 'sat_s1', time: '7:30–9:30', duration: 2.0, title: 'Study Session 1' },
+                { id: 'sat_s2', time: '11:30–1:00', duration: 1.5, title: 'Study Session 2' },
+                { id: 'sat_rev', time: '8:45–10:15', duration: 1.5, title: 'Weekly test / revision / unfinished chapters' }
+            ]
+        };
+
+        // Start & End tracking dates
+        const START_TRACKING_DATE = '2026-10-01';
+        const END_TRACKING_DATE = '2027-12-30';
+
+        // Default Subject Colors
+        const DEFAULT_SUBJECT_COLORS = {
+            'Physics': '#6366f1',
+            'Chemistry': '#10b981',
+            'Higher Math': '#f59e0b',
+            'Biology': '#ec4899',
+            'ICT': '#06b6d4',
+            'English': '#8b5cf6',
+            'Bangla': '#f97316'
+        };
+
+        // App Initial State
+        let state = {
+            selectedDate: getInitialDate(),
+            subjects: ['Physics', 'Chemistry', 'Higher Math', 'Biology', 'ICT', 'English', 'Bangla'],
+            subjectColors: { ...DEFAULT_SUBJECT_COLORS },
+            selectedNewColor: '#6366f1',
+            logs: {}, 
+            db: null,
+            userId: 'user_default',
+            chartInstance: null
+        };
+
+        function formatDateLocal(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function getInitialDate() {
+            const today = formatDateLocal(new Date());
+            if (today < START_TRACKING_DATE) return START_TRACKING_DATE;
+            if (today > END_TRACKING_DATE) return END_TRACKING_DATE;
+            return today;
+        }
+
+        function getTodayFormatted() {
+            return formatDateLocal(new Date());
+        }
+
+        function getScheduleForDate(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00');
+            const dayOfWeek = d.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
+            if (dayOfWeek === 5) return { name: 'Friday Schedule', items: SCHEDULES.friday };
+            if (dayOfWeek === 6) return { name: 'Saturday Schedule', items: SCHEDULES.saturday };
+            return { name: 'Sunday–Thursday Schedule', items: SCHEDULES.weekday };
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.textContent = message;
+            if (isError) {
+                toast.classList.replace('border-indigo-500', 'border-rose-500');
+                toastIcon.className = 'fa-solid fa-circle-exclamation text-rose-400 text-base';
+            } else {
+                toast.classList.replace('border-rose-500', 'border-indigo-500');
+                toastIcon.className = 'fa-solid fa-circle-check text-indigo-400 text-base';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function loadLocalData() {
+            const localSubjects = localStorage.getItem('studypulse_subjects');
+            if (localSubjects) {
+                try { state.subjects = JSON.parse(localSubjects); } catch (e) {}
+            }
+
+            const localColors = localStorage.getItem('studypulse_subject_colors');
+            if (localColors) {
+                try { state.subjectColors = { ...DEFAULT_SUBJECT_COLORS, ...JSON.parse(localColors) }; } catch (e) {}
+            }
+
+            const localLogs = localStorage.getItem('studypulse_logs');
+            if (localLogs) {
+                try { state.logs = JSON.parse(localLogs); } catch (e) {}
+            }
+        }
+
+        function saveLocalData() {
+            localStorage.setItem('studypulse_subjects', JSON.stringify(state.subjects));
+            localStorage.setItem('studypulse_subject_colors', JSON.stringify(state.subjectColors));
+            localStorage.setItem('studypulse_logs', JSON.stringify(state.logs));
+        }
+
+        async function syncToFirebase(dateStr) {
+            if (!state.db) return;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'study-tracker-app';
+            
+            try {
+                const { doc, setDoc } = window.FirebaseSDK;
+                const dateData = state.logs[dateStr] || {};
+                
+                // Firestore standard path for artifacts
+                const docRef = doc(state.db, 'artifacts', appId, 'public', 'data', 'daily_logs', dateStr);
+                await setDoc(docRef, {
+                    date: dateStr,
+                    sessions: dateData,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                document.getElementById('syncStatus').textContent = 'Cloud Synced';
+            } catch (err) {
+                console.error('Firebase Sync Error:', err);
+                document.getElementById('syncStatus').textContent = 'Sync Error';
+            }
+        }
+
+        // Initialize Firebase safely
+        async function initFirebase() {
+            const syncStatusEl = document.getElementById('syncStatus');
+            let config = null;
+
+            // Priority 1: Built-in global environment config if available
+            if (typeof __firebase_config !== 'undefined') {
+                try { config = JSON.parse(__firebase_config); } catch (e) {}
+            }
+
+            // Priority 2: User saved custom config in localStorage
+            if (!config) {
+                const userConfig = localStorage.getItem('studypulse_firebase_config');
+                if (userConfig) {
+                    try { config = JSON.parse(userConfig); } catch (e) {}
+                }
+            }
+
+            if (!config) {
+                syncStatusEl.textContent = 'Local Storage Mode';
+                return;
+            }
+
+            try {
+                const { initializeApp, getApps, getAuth, signInAnonymously, signInWithCustomToken, getFirestore } = window.FirebaseSDK;
+                const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
+                const auth = getAuth(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                state.db = getFirestore(app);
+                syncStatusEl.textContent = 'Cloud Active';
+                showToast('Firebase DB Connected');
+            } catch (error) {
+                console.error('Firebase Init Error:', error);
+                syncStatusEl.textContent = 'Cloud Error';
+            }
+        }
+
+        function renderSubjectsList() {
+            const container = document.getElementById('subjectBadgesContainer');
+            container.innerHTML = '';
+
+            state.subjects.forEach(sub => {
+                const subColor = state.subjectColors[sub] || '#6366f1';
+                const badge = document.createElement('div');
+                badge.className = 'group flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:border-slate-500 transition-all';
+                badge.innerHTML = `
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${subColor}; box-shadow: 0 0 6px ${subColor}80;"></span>
+                    <span>${sub}</span>
+                    <button class="remove-sub-btn opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-400 ml-1 transition-opacity" data-sub="${sub}">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+                container.appendChild(badge);
+            });
+
+            // Add delete listener
+            container.querySelectorAll('.remove-sub-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const subToDelete = e.currentTarget.getAttribute('data-sub');
+                    state.subjects = state.subjects.filter(s => s !== subToDelete);
+                    delete state.subjectColors[subToDelete];
+                    saveLocalData();
+                    renderSubjectsList();
+                    renderTimetable();
+                });
+            });
+        }
+
+        function renderTimetable() {
+            const dateStr = state.selectedDate;
+            const scheduleInfo = getScheduleForDate(dateStr);
+            
+            document.getElementById('selectedDayName').textContent = scheduleInfo.name;
+            const container = document.getElementById('timetableContainer');
+            container.innerHTML = '';
+
+            const dayLog = state.logs[dateStr] || {};
+            let completedCount = 0;
+
+            scheduleInfo.items.forEach(session => {
+                const sessionData = dayLog[session.id] || { completed: false, subjects: [], notes: '' };
+                if (sessionData.completed) completedCount++;
+
+                const card = document.createElement('div');
+                card.className = `glass-panel p-5 rounded-2xl transition-all duration-300 border ${
+                    sessionData.completed ? 'border-indigo-500/50 bg-indigo-950/20' : 'border-slate-800'
+                }`;
+
+                // Render subject checkboxes with custom colors for this session
+                let subjectsHtml = state.subjects.map(sub => {
+                    const isChecked = sessionData.subjects && sessionData.subjects.includes(sub);
+                    const subColor = state.subjectColors[sub] || '#6366f1';
+                    return `
+                        <label class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border text-xs transition-all hover:border-slate-700"
+                            style="${isChecked ? `border-color: ${subColor}; color: #ffffff; background-color: ${subColor}15;` : 'border-color: #1e293b; color: #94a3b8;'}">
+                            <input type="checkbox" class="session-sub-checkbox hidden" data-session="${session.id}" data-sub="${sub}" ${isChecked ? 'checked' : ''}>
+                            <span class="w-2 h-2 rounded-full" style="background-color: ${subColor};"></span>
+                            <span>${sub}</span>
+                        </label>
+                    `;
+                }).join('');
+
+                card.innerHTML = `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-800/80">
+                        <div class="flex items-start sm:items-center gap-3">
+                            <!-- Main Session Completion Checkbox -->
+                            <label class="relative flex items-center justify-center cursor-pointer mt-0.5 sm:mt-0">
+                                <input type="checkbox" class="session-main-checkbox sr-only checkbox-anim" data-session="${session.id}" ${sessionData.completed ? 'checked' : ''}>
+                                <div class="w-6 h-6 rounded-lg border-2 border-slate-600 bg-slate-900 flex items-center justify-center transition-all">
+                                    <i class="fa-solid fa-check text-white text-xs ${sessionData.completed ? 'block' : 'hidden'}"></i>
+                                </div>
+                            </label>
+
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                        ${session.time}
+                                    </span>
+                                    <span class="text-xs text-slate-400">(${session.duration} hrs)</span>
+                                </div>
+                                <h3 class="font-bold text-white text-base mt-1 ${sessionData.completed ? 'line-through text-slate-400' : ''}">
+                                    ${session.title}
+                                </h3>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs ${sessionData.completed ? 'text-emerald-400 font-bold' : 'text-slate-500'}">
+                                ${sessionData.completed ? '<i class="fa-solid fa-circle-check"></i> Completed' : 'Pending'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Subjects Selection Section -->
+                    <div class="pt-3 space-y-2">
+                        <span class="text-xs font-medium text-slate-400 block">
+                            <i class="fa-solid fa-tags text-slate-500 mr-1"></i> Subjects Covered in this slot:
+                        </span>
+                        <div class="flex flex-wrap gap-1.5">
+                            ${subjectsHtml}
+                        </div>
+                    </div>
+
+                    <!-- Quick Session Notes -->
+                    <div class="mt-3">
+                        <input type="text" placeholder="Session details / chapters completed..." value="${sessionData.notes || ''}" 
+                            class="session-notes-input w-full bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                            data-session="${session.id}">
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            document.getElementById('dayCompletionText').textContent = `${completedCount}/${scheduleInfo.items.length} Sessions Done`;
+
+            attachSessionEventListeners();
+            updateAnalytics();
+        }
+
+        function attachSessionEventListeners() {
+            const dateStr = state.selectedDate;
+
+            // Ensure daily structure exists in state
+            if (!state.logs[dateStr]) state.logs[dateStr] = {};
+
+            // Main completion checkboxes
+            document.querySelectorAll('.session-main-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const sessionId = e.target.getAttribute('data-session');
+                    if (!state.logs[dateStr][sessionId]) {
+                        state.logs[dateStr][sessionId] = { completed: false, subjects: [], notes: '' };
+                    }
+                    state.logs[dateStr][sessionId].completed = e.target.checked;
+                    
+                    saveLocalData();
+                    syncToFirebase(dateStr);
+                    renderTimetable();
+                });
+            });
+
+            // Subject multi-select checkboxes inside sessions
+            document.querySelectorAll('.session-sub-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const sessionId = e.target.getAttribute('data-session');
+                    const subject = e.target.getAttribute('data-sub');
+
+                    if (!state.logs[dateStr][sessionId]) {
+                        state.logs[dateStr][sessionId] = { completed: false, subjects: [], notes: '' };
+                    }
+
+                    let currentSubs = state.logs[dateStr][sessionId].subjects || [];
+                    if (e.target.checked) {
+                        if (!currentSubs.includes(subject)) currentSubs.push(subject);
+                    } else {
+                        currentSubs = currentSubs.filter(s => s !== subject);
+                    }
+
+                    state.logs[dateStr][sessionId].subjects = currentSubs;
+
+                    // Automatically mark session complete if subject is selected
+                    if (currentSubs.length > 0 && !state.logs[dateStr][sessionId].completed) {
+                        state.logs[dateStr][sessionId].completed = true;
+                    }
+
+                    saveLocalData();
+                    syncToFirebase(dateStr);
+                    renderTimetable();
+                });
+            });
+
+            // Notes input update
+            document.querySelectorAll('.session-notes-input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const sessionId = e.target.getAttribute('data-session');
+                    if (!state.logs[dateStr][sessionId]) {
+                        state.logs[dateStr][sessionId] = { completed: false, subjects: [], notes: '' };
+                    }
+                    state.logs[dateStr][sessionId].notes = e.target.value;
+                    saveLocalData();
+                    syncToFirebase(dateStr);
+                });
+            });
+        }
+
+        function getLatestActiveDate() {
+            let maxDate = null;
+            Object.keys(state.logs).forEach(dateStr => {
+                const dayLog = state.logs[dateStr];
+                if (!dayLog) return;
+                const hasActivity = Object.values(dayLog).some(slot => slot && (slot.completed || (slot.subjects && slot.subjects.length > 0)));
+                if (hasActivity) {
+                    if (!maxDate || dateStr > maxDate) {
+                        maxDate = dateStr;
+                    }
+                }
+            });
+            return maxDate;
+        }
+
+        function updateAnalytics() {
+            let totalHours = 0;
+            let totalSessionsPossible = 0;
+            let completedSessions = 0;
+            let subjectHours = {};
+
+            // Initialize subject study hours map
+            state.subjects.forEach(s => subjectHours[s] = 0);
+
+            // Find the latest active date with completed sessions
+            const maxDateStr = getLatestActiveDate();
+
+            if (maxDateStr) {
+                let currDate = new Date(START_TRACKING_DATE + 'T00:00:00');
+                const endDate = new Date(maxDateStr + 'T00:00:00');
+
+                // Iterate every single date continuously from Oct 1 up to the latest checked date
+                while (currDate <= endDate) {
+                    const dateStr = formatDateLocal(currDate);
+                    const schedule = getScheduleForDate(dateStr).items;
+                    const dayLog = state.logs[dateStr] || {};
+
+                    schedule.forEach(slot => {
+                        totalSessionsPossible++;
+                        const userSlot = dayLog[slot.id];
+                        if (userSlot && userSlot.completed) {
+                            completedSessions++;
+                            totalHours += slot.duration;
+
+                            if (userSlot.subjects && Array.isArray(userSlot.subjects) && userSlot.subjects.length > 0) {
+                                // Split session duration equally among selected subjects
+                                const splitDuration = slot.duration / userSlot.subjects.length;
+                                userSlot.subjects.forEach(sub => {
+                                    if (subjectHours[sub] === undefined) {
+                                        subjectHours[sub] = 0;
+                                    }
+                                    subjectHours[sub] += splitDuration;
+                                });
+                            }
+                        }
+                    });
+
+                    currDate.setDate(currDate.getDate() + 1);
+                }
+            }
+
+            document.getElementById('statTotalHours').textContent = `${totalHours.toFixed(1)} hrs`;
+            
+            const rate = totalSessionsPossible > 0 
+                ? Math.round((completedSessions / totalSessionsPossible) * 100) 
+                : 0;
+            document.getElementById('statCompletionRate').textContent = `${rate}%`;
+
+            // Calculate streak
+            calculateStreak();
+
+            // Render Chart & Detailed Subject Hours List
+            renderChartAndSubjectHours(subjectHours);
+        }
+
+        function calculateStreak() {
+            let streak = 0;
+            const todayStr = getTodayFormatted();
+            const latestActiveDate = getLatestActiveDate();
+
+            if (!latestActiveDate) {
+                document.getElementById('streakCount').textContent = `0 Days Streak`;
+                return;
+            }
+
+            let startCheckDateStr = null;
+
+            if (todayStr >= START_TRACKING_DATE && todayStr <= END_TRACKING_DATE) {
+                // We are inside the active tracking timeframe
+                const todayHasCompletion = checkDayHasCompletion(todayStr);
+                const yesterdayStr = getOffsetDateStr(todayStr, -1);
+                const yesterdayHasCompletion = checkDayHasCompletion(yesterdayStr);
+
+                if (todayHasCompletion) {
+                    startCheckDateStr = todayStr;
+                } else if (yesterdayHasCompletion) {
+                    startCheckDateStr = yesterdayStr;
+                } else {
+                    // Missed today and yesterday -> streak broken
+                    document.getElementById('streakCount').textContent = `0 Days Streak`;
+                    return;
+                }
+            } else {
+                // Outside live tracking timeframe (e.g. filling out dates starting Oct 1, 2026)
+                startCheckDateStr = latestActiveDate;
+            }
+
+            // Count backwards consecutive days with completed sessions
+            let currStr = startCheckDateStr;
+            while (currStr >= START_TRACKING_DATE) {
+                if (checkDayHasCompletion(currStr)) {
+                    streak++;
+                    currStr = getOffsetDateStr(currStr, -1);
+                } else {
+                    break;
+                }
+            }
+
+            document.getElementById('streakCount').textContent = `${streak} Days Streak`;
+        }
+
+        function checkDayHasCompletion(dateStr) {
+            const dayLog = state.logs[dateStr];
+            if (!dayLog) return false;
+            const schedule = getScheduleForDate(dateStr).items;
+            return schedule.some(slot => dayLog[slot.id] && dayLog[slot.id].completed);
+        }
+
+        function getOffsetDateStr(dateStr, offsetDays) {
+            const parts = dateStr.split('-').map(Number);
+            const d = new Date(parts[0], parts[1] - 1, parts[2]);
+            d.setDate(d.getDate() + offsetDays);
+            return formatDateLocal(d);
+        }
+
+        function renderChartAndSubjectHours(subjectHours) {
+            const ctx = document.getElementById('subjectChart').getContext('2d');
+            const labels = Object.keys(subjectHours);
+            const dataValues = Object.values(subjectHours);
+
+            if (state.chartInstance) {
+                state.chartInstance.destroy();
+            }
+
+            const hasData = dataValues.some(v => v > 0);
+
+            // Use subject-specific colors for chart and breakdown
+            const chartColors = labels.map(sub => state.subjectColors[sub] || '#6366f1');
+
+            state.chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: hasData ? dataValues : [1],
+                        backgroundColor: hasData ? chartColors : ['#334155'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (!hasData) return ' No study hours recorded yet';
+                                    const val = context.raw || 0;
+                                    return ` ${context.label}: ${val.toFixed(2)} hrs`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Render Detailed Subject Hours List in Sidebar
+            const hoursListContainer = document.getElementById('subjectHoursList');
+            if (hoursListContainer) {
+                hoursListContainer.innerHTML = '';
+                
+                const sortedSubjects = labels.map(sub => ({
+                    subject: sub,
+                    hours: subjectHours[sub] || 0,
+                    color: state.subjectColors[sub] || '#6366f1'
+                })).sort((a, b) => b.hours - a.hours);
+
+                sortedSubjects.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-slate-900/60 border border-slate-800/60';
+                    
+                    const formattedTime = item.hours >= 1 
+                        ? `${item.hours.toFixed(1)} hrs` 
+                        : (item.hours > 0 ? `${Math.round(item.hours * 60)} mins` : '0 hrs');
+
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${item.color}; box-shadow: 0 0 6px ${item.color}80;"></span>
+                            <span class="text-slate-300 font-medium">${item.subject}</span>
+                        </div>
+                        <span class="font-semibold text-indigo-300 font-mono">${formattedTime}</span>
+                    `;
+                    hoursListContainer.appendChild(row);
+                });
+            }
+        }
+
+        function setupEventListeners() {
+            const datePicker = document.getElementById('datePicker');
+            datePicker.value = state.selectedDate;
+
+            datePicker.addEventListener('change', (e) => {
+                let val = e.target.value;
+                if (val < START_TRACKING_DATE) val = START_TRACKING_DATE;
+                if (val > END_TRACKING_DATE) val = END_TRACKING_DATE;
+                state.selectedDate = val;
+                datePicker.value = val;
+                renderTimetable();
+            });
+
+            document.getElementById('prevDateBtn').addEventListener('click', () => {
+                const parts = state.selectedDate.split('-').map(Number);
+                const current = new Date(parts[0], parts[1] - 1, parts[2]);
+                current.setDate(current.getDate() - 1);
+                
+                const formatted = formatDateLocal(current);
+                if (formatted >= START_TRACKING_DATE) {
+                    state.selectedDate = formatted;
+                    datePicker.value = state.selectedDate;
+                    renderTimetable();
+                } else {
+                    showToast('Tracking start date is Oct 1, 2026', true);
+                }
+            });
+
+            document.getElementById('nextDateBtn').addEventListener('click', () => {
+                const parts = state.selectedDate.split('-').map(Number);
+                const current = new Date(parts[0], parts[1] - 1, parts[2]);
+                current.setDate(current.getDate() + 1);
+
+                const formatted = formatDateLocal(current);
+                if (formatted <= END_TRACKING_DATE) {
+                    state.selectedDate = formatted;
+                    datePicker.value = state.selectedDate;
+                    renderTimetable();
+                } else {
+                    showToast('Tracking end date is Dec 30, 2027', true);
+                }
+            });
+
+            document.getElementById('todayBtn').addEventListener('click', () => {
+                const target = getInitialDate();
+                state.selectedDate = target;
+                datePicker.value = state.selectedDate;
+                renderTimetable();
+            });
+
+            // Add Subject handlers & Color logic
+            const addSubjectForm = document.getElementById('addSubjectForm');
+            document.getElementById('addSubjectToggleBtn').addEventListener('click', () => {
+                addSubjectForm.classList.toggle('hidden');
+            });
+
+            // Handle Preset Color Buttons
+            const presetBtns = document.querySelectorAll('.color-preset-btn');
+            presetBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const chosenColor = e.currentTarget.getAttribute('data-color');
+                    state.selectedNewColor = chosenColor;
+                    document.getElementById('customColorPicker').value = chosenColor;
+                    
+                    presetBtns.forEach(b => b.classList.remove('ring-2', 'ring-white/80'));
+                    e.currentTarget.classList.add('ring-2', 'ring-white/80');
+                });
+            });
+
+            // Handle Custom Color Picker Input
+            const customColorPicker = document.getElementById('customColorPicker');
+            customColorPicker.addEventListener('input', (e) => {
+                state.selectedNewColor = e.target.value;
+                presetBtns.forEach(b => b.classList.remove('ring-2', 'ring-white/80'));
+            });
+
+            document.getElementById('saveSubjectBtn').addEventListener('click', () => {
+                const input = document.getElementById('newSubjectInput');
+                const val = input.value.trim();
+                if (val && !state.subjects.includes(val)) {
+                    state.subjects.push(val);
+                    state.subjectColors[val] = state.selectedNewColor || '#6366f1';
+                    saveLocalData();
+                    renderSubjectsList();
+                    renderTimetable();
+                    input.value = '';
+                    addSubjectForm.classList.add('hidden');
+                    showToast(`Subject "${val}" added with custom color`);
+                }
+            });
+
+            // Firebase Modal Controls
+            const modal = document.getElementById('firebaseModal');
+            document.getElementById('openConfigBtn').addEventListener('click', () => modal.classList.remove('hidden'));
+            document.getElementById('closeConfigBtn').addEventListener('click', () => modal.classList.add('hidden'));
+
+            document.getElementById('saveConfigBtn').addEventListener('click', async () => {
+                const val = document.getElementById('firebaseConfigInput').value.trim();
+                try {
+                    JSON.parse(val); // validate json
+                    localStorage.setItem('studypulse_firebase_config', val);
+                    modal.classList.add('hidden');
+                    showToast('Connecting to Firebase...');
+                    await initFirebase();
+                } catch (e) {
+                    showToast('Invalid JSON Config Format', true);
+                }
+            });
+
+            document.getElementById('clearConfigBtn').addEventListener('click', () => {
+                localStorage.removeItem('studypulse_firebase_config');
+                document.getElementById('firebaseConfigInput').value = '';
+                modal.classList.add('hidden');
+                state.db = null;
+                document.getElementById('syncStatus').textContent = 'Local Storage Mode';
+                showToast('Firebase Config Cleared');
+            });
+        }
+
+        // Window Load Handler
+        window.onload = async function() {
+            loadLocalData();
+            setupEventListeners();
+            renderSubjectsList();
+            renderTimetable();
+            await initFirebase();
+        };
+    </script>
+</body>
+</html>
