@@ -344,18 +344,20 @@
             'Bangla 2nd': '#f97316'
         };
 
+        const DEFAULT_SUBJECTS_LIST = [
+            'ICT',
+            'Physics 1st', 'Physics 2nd',
+            'Chemistry 1st', 'Chemistry 2nd',
+            'Higher Math 1st', 'Higher Math 2nd',
+            'Biology 1st', 'Biology 2nd',
+            'English 1st', 'English 2nd',
+            'Bangla 1st', 'Bangla 2nd'
+        ];
+
         // App Initial State
         let state = {
             selectedDate: getInitialDate(),
-            subjects: [
-                'ICT',
-                'Physics 1st', 'Physics 2nd',
-                'Chemistry 1st', 'Chemistry 2nd',
-                'Higher Math 1st', 'Higher Math 2nd',
-                'Biology 1st', 'Biology 2nd',
-                'English 1st', 'English 2nd',
-                'Bangla 1st', 'Bangla 2nd'
-            ],
+            subjects: [...DEFAULT_SUBJECTS_LIST],
             subjectColors: { ...DEFAULT_SUBJECT_COLORS },
             selectedNewColor: '#6366f1',
             logs: {}, 
@@ -411,26 +413,29 @@
         }
 
         function loadLocalData() {
-            const localSubjects = localStorage.getItem('studytracker_subjects');
+            const localSubjects = localStorage.getItem('studytracker_subjects_v3');
             if (localSubjects) {
                 try { state.subjects = JSON.parse(localSubjects); } catch (e) {}
+            } else {
+                // Ensure default 13 subjects if no v3 cache exists yet
+                state.subjects = [...DEFAULT_SUBJECTS_LIST];
             }
 
-            const localColors = localStorage.getItem('studytracker_subject_colors');
+            const localColors = localStorage.getItem('studytracker_subject_colors_v3');
             if (localColors) {
                 try { state.subjectColors = { ...DEFAULT_SUBJECT_COLORS, ...JSON.parse(localColors) }; } catch (e) {}
             }
 
-            const localLogs = localStorage.getItem('studytracker_logs');
+            const localLogs = localStorage.getItem('studytracker_logs_v3');
             if (localLogs) {
                 try { state.logs = JSON.parse(localLogs); } catch (e) {}
             }
         }
 
         function saveLocalData() {
-            localStorage.setItem('studytracker_subjects', JSON.stringify(state.subjects));
-            localStorage.setItem('studytracker_subject_colors', JSON.stringify(state.subjectColors));
-            localStorage.setItem('studytracker_logs', JSON.stringify(state.logs));
+            localStorage.setItem('studytracker_subjects_v3', JSON.stringify(state.subjects));
+            localStorage.setItem('studytracker_subject_colors_v3', JSON.stringify(state.subjectColors));
+            localStorage.setItem('studytracker_logs_v3', JSON.stringify(state.logs));
         }
 
         async function syncToFirebase(dateStr) {
@@ -480,7 +485,6 @@
             const { collection, doc, onSnapshot } = window.FirebaseSDK;
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'study-tracker-app';
 
-            // Clean up old listeners
             if (state.unsubscribeListeners && state.unsubscribeListeners.length > 0) {
                 state.unsubscribeListeners.forEach(unsub => unsub());
             }
@@ -514,7 +518,7 @@
             const unsubSubjects = onSnapshot(subjectsDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if (data.subjects && Array.isArray(data.subjects)) {
+                    if (data.subjects && Array.isArray(data.subjects) && data.subjects.length > 0) {
                         state.subjects = data.subjects;
                     }
                     if (data.subjectColors && typeof data.subjectColors === 'object') {
@@ -523,6 +527,9 @@
                     saveLocalData();
                     renderSubjectsList();
                     renderTimetable();
+                } else {
+                    // If document doesn't exist in cloud yet, push our current subjects
+                    syncSubjectsToFirebase();
                 }
             }, (error) => {
                 console.error("Firestore Subjects Listen Error:", error);
@@ -565,8 +572,9 @@
                 syncStatusEl.textContent = 'Cloud Active';
                 showToast('Firebase DB Connected');
 
-                // Start real-time sync listeners for logs and subjects across devices
                 listenToFirebaseUpdates();
+                // Also trigger a subjects sync on connect
+                await syncSubjectsToFirebase();
             } catch (error) {
                 console.error('Firebase Init Error:', error);
                 syncStatusEl.textContent = 'Cloud Error';
@@ -577,12 +585,10 @@
             if (!rawText || !rawText.trim()) return null;
             let text = rawText.trim();
 
-            // Strip leading/trailing quotation marks if whole block was quoted
             if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
                 text = text.slice(1, -1).trim();
             }
 
-            // Remove JavaScript single line comments (// ...)
             text = text.replace(/\/\/.*/g, '');
 
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
@@ -602,7 +608,6 @@
                 return config;
             }
 
-            // Fallback JSON parse
             try {
                 return JSON.parse(text);
             } catch (e) {}
