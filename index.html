@@ -482,32 +482,36 @@
             if (!rawText || !rawText.trim()) return null;
             let text = rawText.trim();
 
-            // Strip variable assignments like "const firebaseConfig =" or "var config ="
-            text = text.replace(/^(const|let|var)\s+\w+\s*=\s*/, '');
-            text = text.replace(/;\s*$/, ''); // Remove trailing semicolon
+            // Strip leading/trailing quote marks if whole string was enclosed in double quotes
+            if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+                text = text.slice(1, -1).trim();
+            }
 
-            // Direct JSON parse attempt
+            // 1. Direct JSON parse attempt
             try {
                 return JSON.parse(text);
             } catch (e) {}
 
-            // Extract object pattern { ... }
-            const match = text.match(/\{[\s\S]*\}/);
-            if (match) {
-                text = match[0];
+            // 2. Targeted Key-Value extraction regex (Handles JS comments, code declarations, missing quotes, etc.)
+            const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
+            const config = {};
+            let foundCount = 0;
+
+            keys.forEach(key => {
+                // Regex matches: key: "val" | key: 'val' | "key": "val" | 'key': 'val'
+                const reg = new RegExp(`['"]?${key}['"]?\\s*:\\s*['"]([^'"]+)['"]`);
+                const match = text.match(reg);
+                if (match && match[1]) {
+                    config[key] = match[1];
+                    foundCount++;
+                }
+            });
+
+            if (foundCount > 0 && config.apiKey) {
+                return config;
             }
 
-            // Clean JS object syntax into valid JSON
-            try {
-                let jsonish = text
-                    .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":') // Quote object keys
-                    .replace(/:\s*'([^']*)'/g, ':"$1"') // Convert single quotes to double quotes
-                    .replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
-                
-                return JSON.parse(jsonish);
-            } catch (err) {
-                throw new Error("Unable to parse config format");
-            }
+            throw new Error("Unable to parse config format");
         }
 
         function renderSubjectsList() {
