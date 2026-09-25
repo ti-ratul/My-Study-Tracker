@@ -268,7 +268,7 @@
             </div>
 
             <p class="text-xs text-slate-400 leading-relaxed">
-                Paste your Firebase Project Configuration here. You can paste the entire <code>const firebaseConfig = { ... };</code> snippet directly from Firebase!
+                Paste your Firebase Project Configuration snippet below. You can paste the raw <code>const firebaseConfig = { ... };</code> JavaScript block directly!
             </p>
 
             <div class="space-y-3">
@@ -346,7 +346,7 @@
             selectedNewColor: '#6366f1',
             logs: {}, 
             db: null,
-            unsubscribeListener: null,
+            unsubscribeListeners: [],
             chartInstance: null
         };
 
@@ -441,17 +441,40 @@
             }
         }
 
+        async function syncSubjectsToFirebase() {
+            if (!state.db) return;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'study-tracker-app';
+
+            try {
+                const { doc, setDoc } = window.FirebaseSDK;
+                const docRef = doc(state.db, 'artifacts', appId, 'public', 'data', 'settings', 'subjects');
+                await setDoc(docRef, {
+                    subjects: state.subjects,
+                    subjectColors: state.subjectColors,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                document.getElementById('syncStatus').textContent = 'Cloud Synced';
+            } catch (err) {
+                console.error('Firebase Subjects Sync Error:', err);
+                document.getElementById('syncStatus').textContent = 'Sync Error';
+            }
+        }
+
         function listenToFirebaseUpdates() {
             if (!state.db) return;
-            const { collection, onSnapshot } = window.FirebaseSDK;
+            const { collection, doc, onSnapshot } = window.FirebaseSDK;
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'study-tracker-app';
-            const logsColRef = collection(state.db, 'artifacts', appId, 'public', 'data', 'daily_logs');
 
-            if (state.unsubscribeListener) {
-                state.unsubscribeListener();
+            // Clean up old listeners
+            if (state.unsubscribeListeners && state.unsubscribeListeners.length > 0) {
+                state.unsubscribeListeners.forEach(unsub => unsub());
             }
+            state.unsubscribeListeners = [];
 
-            state.unsubscribeListener = onSnapshot(logsColRef, (snapshot) => {
+            // 1. Listen to Daily Logs
+            const logsColRef = collection(state.db, 'artifacts', appId, 'public', 'data', 'daily_logs');
+            const unsubLogs = onSnapshot(logsColRef, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     const dateStr = change.doc.id;
                     const data = change.doc.data();
@@ -467,9 +490,30 @@
                 renderTimetable();
                 document.getElementById('syncStatus').textContent = 'Cloud Live';
             }, (error) => {
-                console.error("Firestore Listen Error:", error);
+                console.error("Firestore Logs Listen Error:", error);
                 document.getElementById('syncStatus').textContent = 'Sync Error';
             });
+            state.unsubscribeListeners.push(unsubLogs);
+
+            // 2. Listen to Subjects Configuration
+            const subjectsDocRef = doc(state.db, 'artifacts', appId, 'public', 'data', 'settings', 'subjects');
+            const unsubSubjects = onSnapshot(subjectsDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.subjects && Array.isArray(data.subjects)) {
+                        state.subjects = data.subjects;
+                    }
+                    if (data.subjectColors && typeof data.subjectColors === 'object') {
+                        state.subjectColors = { ...DEFAULT_SUBJECT_COLORS, ...data.subjectColors };
+                    }
+                    saveLocalData();
+                    renderSubjectsList();
+                    renderTimetable();
+                }
+            }, (error) => {
+                console.error("Firestore Subjects Listen Error:", error);
+            });
+            state.unsubscribeListeners.push(unsubSubjects);
         }
 
         async function initFirebase() {
@@ -507,7 +551,7 @@
                 syncStatusEl.textContent = 'Cloud Active';
                 showToast('Firebase DB Connected');
 
-                // Start real-time sync listener across devices
+                // Start real-time sync listeners for logs and subjects across devices
                 listenToFirebaseUpdates();
             } catch (error) {
                 console.error('Firebase Init Error:', error);
@@ -519,13 +563,13 @@
             if (!rawText || !rawText.trim()) return null;
             let text = rawText.trim();
 
+            // Strip leading/trailing quotation marks if whole block was quoted
             if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
                 text = text.slice(1, -1).trim();
             }
 
-            try {
-                return JSON.parse(text);
-            } catch (e) {}
+            // Remove JavaScript single line comments (// ...)
+            text = text.replace(/\/\/.*/g, '');
 
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
             const config = {};
@@ -543,6 +587,11 @@
             if (foundCount > 0 && config.apiKey) {
                 return config;
             }
+
+            // Fallback JSON parse
+            try {
+                return JSON.parse(text);
+            } catch (e) {}
 
             throw new Error("Unable to parse config format");
         }
@@ -571,6 +620,7 @@
                     state.subjects = state.subjects.filter(s => s !== subToDelete);
                     delete state.subjectColors[subToDelete];
                     saveLocalData();
+                    syncSubjectsToFirebase();
                     renderSubjectsList();
                     renderTimetable();
                 });
@@ -1002,6 +1052,7 @@
                     state.subjects.push(val);
                     state.subjectColors[val] = state.selectedNewColor || '#6366f1';
                     saveLocalData();
+                    syncSubjectsToFirebase();
                     renderSubjectsList();
                     renderTimetable();
                     input.value = '';
@@ -1026,7 +1077,7 @@
                     showToast('Connecting to Firebase...');
                     await initFirebase();
                 } catch (e) {
-                    showToast('Invalid JSON Config Format', true);
+                    showToast('Invalid Firebase Config Snippet', true);
                 }
             });
 
@@ -1034,9 +1085,9 @@
                 localStorage.removeItem('studytracker_firebase_config');
                 document.getElementById('firebaseConfigInput').value = '';
                 modal.classList.add('hidden');
-                if (state.unsubscribeListener) {
-                    state.unsubscribeListener();
-                    state.unsubscribeListener = null;
+                if (state.unsubscribeListeners && state.unsubscribeListeners.length > 0) {
+                    state.unsubscribeListeners.forEach(unsub => unsub());
+                    state.unsubscribeListeners = [];
                 }
                 state.db = null;
                 document.getElementById('syncStatus').textContent = 'Local Mode';
