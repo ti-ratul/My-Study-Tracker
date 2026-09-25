@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StudyTracker - Personalized Timetable Tracker</title>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,6 +26,7 @@
             }
         }
     </script>
+    
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js -->
@@ -71,7 +73,6 @@
 </head>
 <body class="min-h-screen custom-scrollbar pb-12">
 
-    <!-- Header Navbar -->
     <header class="sticky top-0 z-40 glass-panel border-b border-slate-800 bg-slate-900/90 px-4 lg:px-8 py-3">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-3">
@@ -86,7 +87,7 @@
                 </div>
             </div>
 
-            <!-- Current Streak & Dynamic Date Controller -->
+            <!-- Streak & Sync Status Badges -->
             <div class="flex items-center gap-3">
                 <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg text-amber-400">
                     <i class="fa-solid fa-fire text-amber-500 animate-pulse"></i>
@@ -106,16 +107,16 @@
 
     <main class="max-w-7xl mx-auto px-4 lg:px-8 pt-6 space-y-6">
 
-        <!-- Top Date Navigation Bar -->
+        <!-- Date Navigation Bar -->
         <div class="glass-panel p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-2">
-                <button id="prevDateBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors">
+                <button id="prevDateBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors" title="Previous Day">
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
                 
-                <input type="date" id="datePicker" min="2026-10-01" max="2027-12-30" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-semibold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="date" id="datePicker" min="2026-10-01" max="2027-12-30" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-semibold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
                 
-                <button id="nextDateBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors">
+                <button id="nextDateBtn" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors" title="Next Day">
                     <i class="fa-solid fa-chevron-right"></i>
                 </button>
 
@@ -134,10 +135,9 @@
             </div>
         </div>
 
-        <!-- Main Workspace Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-            <!-- Left Column: Daily Schedule Tracker (8 Cols) -->
+            <!-- Left Column: Daily Schedule Timetable (8 Cols) -->
             <div class="lg:col-span-8 space-y-4">
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-bold flex items-center gap-2">
@@ -149,13 +149,12 @@
                     </span>
                 </div>
 
-                <!-- Daily Sessions Container -->
+                <!-- Daily Sessions Dynamic Container -->
                 <div id="timetableContainer" class="space-y-4">
                     <!-- Session cards dynamically populated here -->
                 </div>
             </div>
 
-            <!-- Right Column: Stats, Subjects & Security (4 Cols) -->
             <div class="lg:col-span-4 space-y-6">
 
                 <!-- Overall Progress Summary Card -->
@@ -183,14 +182,13 @@
                             <canvas id="subjectChart"></canvas>
                         </div>
 
-                        <!-- Subject Study Hours Detailed Breakdown -->
+                        <!-- Subject Study Hours Detailed Breakdown List -->
                         <div id="subjectHoursList" class="mt-3 space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                            <!-- Dynamic subject hours rows rendered here -->
+                            <!-- Dynamic subject hours rows -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Subjects Selection & Management Box -->
                 <div class="glass-panel p-5 rounded-2xl space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2">
@@ -202,7 +200,7 @@
                         </button>
                     </div>
 
-                    <!-- Add Subject Inline Input with Color Selection -->
+                    <!-- Add Subject Inline Input with Color Picker -->
                     <div id="addSubjectForm" class="hidden space-y-3 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
                         <input type="text" id="newSubjectInput" placeholder="Subject Name (e.g., Physics)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                         
@@ -254,7 +252,6 @@
         </div>
     </main>
 
-    <!-- Firebase Settings Modal -->
     <div id="firebaseModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="glass-panel max-w-md w-full p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -268,20 +265,20 @@
             </div>
 
             <p class="text-xs text-slate-400 leading-relaxed">
-                Paste your Firebase Project Configuration here. This is kept inside your browser's Local Storage so your <code>index.html</code> code remains safe for public GitHub commits!
+                Paste your Firebase Project Configuration here. You can paste the entire <code>const firebaseConfig = { ... };</code> snippet directly from Firebase!
             </p>
 
             <div class="space-y-3">
                 <div>
-                    <label class="block text-xs text-slate-300 font-medium mb-1">Firebase Config (JSON)</label>
-                    <textarea id="firebaseConfigInput" rows="7" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder='{
-  "apiKey": "AIzaSy...",
-  "authDomain": "my-study-app.firebaseapp.com",
-  "projectId": "my-study-app",
-  "storageBucket": "my-study-app.appspot.com",
-  "messagingSenderId": "123456789",
-  "appId": "1:123456789:web:abcdef"
-}'></textarea>
+                    <label class="block text-xs text-slate-300 font-medium mb-1">Firebase Config Code</label>
+                    <textarea id="firebaseConfigInput" rows="7" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder='const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "my-study-app.firebaseapp.com",
+  projectId: "my-study-app",
+  storageBucket: "my-study-app.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};'></textarea>
                 </div>
             </div>
 
@@ -397,26 +394,26 @@
         }
 
         function loadLocalData() {
-            const localSubjects = localStorage.getItem('studypulse_subjects');
+            const localSubjects = localStorage.getItem('studytracker_subjects');
             if (localSubjects) {
                 try { state.subjects = JSON.parse(localSubjects); } catch (e) {}
             }
 
-            const localColors = localStorage.getItem('studypulse_subject_colors');
+            const localColors = localStorage.getItem('studytracker_subject_colors');
             if (localColors) {
                 try { state.subjectColors = { ...DEFAULT_SUBJECT_COLORS, ...JSON.parse(localColors) }; } catch (e) {}
             }
 
-            const localLogs = localStorage.getItem('studypulse_logs');
+            const localLogs = localStorage.getItem('studytracker_logs');
             if (localLogs) {
                 try { state.logs = JSON.parse(localLogs); } catch (e) {}
             }
         }
 
         function saveLocalData() {
-            localStorage.setItem('studypulse_subjects', JSON.stringify(state.subjects));
-            localStorage.setItem('studypulse_subject_colors', JSON.stringify(state.subjectColors));
-            localStorage.setItem('studypulse_logs', JSON.stringify(state.logs));
+            localStorage.setItem('studytracker_subjects', JSON.stringify(state.subjects));
+            localStorage.setItem('studytracker_subject_colors', JSON.stringify(state.subjectColors));
+            localStorage.setItem('studytracker_logs', JSON.stringify(state.logs));
         }
 
         async function syncToFirebase(dateStr) {
@@ -427,7 +424,6 @@
                 const { doc, setDoc } = window.FirebaseSDK;
                 const dateData = state.logs[dateStr] || {};
                 
-                // Firestore standard path for artifacts
                 const docRef = doc(state.db, 'artifacts', appId, 'public', 'data', 'daily_logs', dateStr);
                 await setDoc(docRef, {
                     date: dateStr,
@@ -442,26 +438,23 @@
             }
         }
 
-        // Initialize Firebase safely
         async function initFirebase() {
             const syncStatusEl = document.getElementById('syncStatus');
             let config = null;
 
-            // Priority 1: Built-in global environment config if available
             if (typeof __firebase_config !== 'undefined') {
                 try { config = JSON.parse(__firebase_config); } catch (e) {}
             }
 
-            // Priority 2: User saved custom config in localStorage
             if (!config) {
-                const userConfig = localStorage.getItem('studypulse_firebase_config');
+                const userConfig = localStorage.getItem('studytracker_firebase_config');
                 if (userConfig) {
                     try { config = JSON.parse(userConfig); } catch (e) {}
                 }
             }
 
             if (!config) {
-                syncStatusEl.textContent = 'Local Storage Mode';
+                syncStatusEl.textContent = 'Local Mode';
                 return;
             }
 
@@ -485,6 +478,38 @@
             }
         }
 
+        function parseFirebaseInput(rawText) {
+            if (!rawText || !rawText.trim()) return null;
+            let text = rawText.trim();
+
+            // Strip variable assignments like "const firebaseConfig =" or "var config ="
+            text = text.replace(/^(const|let|var)\s+\w+\s*=\s*/, '');
+            text = text.replace(/;\s*$/, ''); // Remove trailing semicolon
+
+            // Direct JSON parse attempt
+            try {
+                return JSON.parse(text);
+            } catch (e) {}
+
+            // Extract object pattern { ... }
+            const match = text.match(/\{[\s\S]*\}/);
+            if (match) {
+                text = match[0];
+            }
+
+            // Clean JS object syntax into valid JSON
+            try {
+                let jsonish = text
+                    .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":') // Quote object keys
+                    .replace(/:\s*'([^']*)'/g, ':"$1"') // Convert single quotes to double quotes
+                    .replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
+                
+                return JSON.parse(jsonish);
+            } catch (err) {
+                throw new Error("Unable to parse config format");
+            }
+        }
+
         function renderSubjectsList() {
             const container = document.getElementById('subjectBadgesContainer');
             container.innerHTML = '';
@@ -503,7 +528,6 @@
                 container.appendChild(badge);
             });
 
-            // Add delete listener
             container.querySelectorAll('.remove-sub-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const subToDelete = e.currentTarget.getAttribute('data-sub');
@@ -536,7 +560,6 @@
                     sessionData.completed ? 'border-indigo-500/50 bg-indigo-950/20' : 'border-slate-800'
                 }`;
 
-                // Render subject checkboxes with custom colors for this session
                 let subjectsHtml = state.subjects.map(sub => {
                     const isChecked = sessionData.subjects && sessionData.subjects.includes(sub);
                     const subColor = state.subjectColors[sub] || '#6366f1';
@@ -553,7 +576,6 @@
                 card.innerHTML = `
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-800/80">
                         <div class="flex items-start sm:items-center gap-3">
-                            <!-- Main Session Completion Checkbox -->
                             <label class="relative flex items-center justify-center cursor-pointer mt-0.5 sm:mt-0">
                                 <input type="checkbox" class="session-main-checkbox sr-only checkbox-anim" data-session="${session.id}" ${sessionData.completed ? 'checked' : ''}>
                                 <div class="w-6 h-6 rounded-lg border-2 border-slate-600 bg-slate-900 flex items-center justify-center transition-all">
@@ -581,7 +603,6 @@
                         </div>
                     </div>
 
-                    <!-- Subjects Selection Section -->
                     <div class="pt-3 space-y-2">
                         <span class="text-xs font-medium text-slate-400 block">
                             <i class="fa-solid fa-tags text-slate-500 mr-1"></i> Subjects Covered in this slot:
@@ -591,7 +612,6 @@
                         </div>
                     </div>
 
-                    <!-- Quick Session Notes -->
                     <div class="mt-3">
                         <input type="text" placeholder="Session details / chapters completed..." value="${sessionData.notes || ''}" 
                             class="session-notes-input w-full bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50"
@@ -611,10 +631,8 @@
         function attachSessionEventListeners() {
             const dateStr = state.selectedDate;
 
-            // Ensure daily structure exists in state
             if (!state.logs[dateStr]) state.logs[dateStr] = {};
 
-            // Main completion checkboxes
             document.querySelectorAll('.session-main-checkbox').forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const sessionId = e.target.getAttribute('data-session');
@@ -629,7 +647,6 @@
                 });
             });
 
-            // Subject multi-select checkboxes inside sessions
             document.querySelectorAll('.session-sub-checkbox').forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const sessionId = e.target.getAttribute('data-session');
@@ -648,7 +665,6 @@
 
                     state.logs[dateStr][sessionId].subjects = currentSubs;
 
-                    // Automatically mark session complete if subject is selected
                     if (currentSubs.length > 0 && !state.logs[dateStr][sessionId].completed) {
                         state.logs[dateStr][sessionId].completed = true;
                     }
@@ -659,7 +675,6 @@
                 });
             });
 
-            // Notes input update
             document.querySelectorAll('.session-notes-input').forEach(input => {
                 input.addEventListener('change', (e) => {
                     const sessionId = e.target.getAttribute('data-session');
@@ -694,17 +709,14 @@
             let completedSessions = 0;
             let subjectHours = {};
 
-            // Initialize subject study hours map
             state.subjects.forEach(s => subjectHours[s] = 0);
 
-            // Find the latest active date with completed sessions
             const maxDateStr = getLatestActiveDate();
 
             if (maxDateStr) {
                 let currDate = new Date(START_TRACKING_DATE + 'T00:00:00');
                 const endDate = new Date(maxDateStr + 'T00:00:00');
 
-                // Iterate every single date continuously from Oct 1 up to the latest checked date
                 while (currDate <= endDate) {
                     const dateStr = formatDateLocal(currDate);
                     const schedule = getScheduleForDate(dateStr).items;
@@ -718,7 +730,6 @@
                             totalHours += slot.duration;
 
                             if (userSlot.subjects && Array.isArray(userSlot.subjects) && userSlot.subjects.length > 0) {
-                                // Split session duration equally among selected subjects
                                 const splitDuration = slot.duration / userSlot.subjects.length;
                                 userSlot.subjects.forEach(sub => {
                                     if (subjectHours[sub] === undefined) {
@@ -741,10 +752,8 @@
                 : 0;
             document.getElementById('statCompletionRate').textContent = `${rate}%`;
 
-            // Calculate streak
             calculateStreak();
 
-            // Render Chart & Detailed Subject Hours List
             renderChartAndSubjectHours(subjectHours);
         }
 
@@ -761,7 +770,6 @@
             let startCheckDateStr = null;
 
             if (todayStr >= START_TRACKING_DATE && todayStr <= END_TRACKING_DATE) {
-                // We are inside the active tracking timeframe
                 const todayHasCompletion = checkDayHasCompletion(todayStr);
                 const yesterdayStr = getOffsetDateStr(todayStr, -1);
                 const yesterdayHasCompletion = checkDayHasCompletion(yesterdayStr);
@@ -771,16 +779,13 @@
                 } else if (yesterdayHasCompletion) {
                     startCheckDateStr = yesterdayStr;
                 } else {
-                    // Missed today and yesterday -> streak broken
                     document.getElementById('streakCount').textContent = `0 Days Streak`;
                     return;
                 }
             } else {
-                // Outside live tracking timeframe (e.g. filling out dates starting Oct 1, 2026)
                 startCheckDateStr = latestActiveDate;
             }
 
-            // Count backwards consecutive days with completed sessions
             let currStr = startCheckDateStr;
             while (currStr >= START_TRACKING_DATE) {
                 if (checkDayHasCompletion(currStr)) {
@@ -819,7 +824,6 @@
 
             const hasData = dataValues.some(v => v > 0);
 
-            // Use subject-specific colors for chart and breakdown
             const chartColors = labels.map(sub => state.subjectColors[sub] || '#6366f1');
 
             state.chartInstance = new Chart(ctx, {
@@ -851,7 +855,6 @@
                 }
             });
 
-            // Render Detailed Subject Hours List in Sidebar
             const hoursListContainer = document.getElementById('subjectHoursList');
             if (hoursListContainer) {
                 hoursListContainer.innerHTML = '';
@@ -932,13 +935,11 @@
                 renderTimetable();
             });
 
-            // Add Subject handlers & Color logic
             const addSubjectForm = document.getElementById('addSubjectForm');
             document.getElementById('addSubjectToggleBtn').addEventListener('click', () => {
                 addSubjectForm.classList.toggle('hidden');
             });
 
-            // Handle Preset Color Buttons
             const presetBtns = document.querySelectorAll('.color-preset-btn');
             presetBtns.forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -951,7 +952,6 @@
                 });
             });
 
-            // Handle Custom Color Picker Input
             const customColorPicker = document.getElementById('customColorPicker');
             customColorPicker.addEventListener('input', (e) => {
                 state.selectedNewColor = e.target.value;
@@ -973,7 +973,6 @@
                 }
             });
 
-            // Firebase Modal Controls
             const modal = document.getElementById('firebaseModal');
             document.getElementById('openConfigBtn').addEventListener('click', () => modal.classList.remove('hidden'));
             document.getElementById('closeConfigBtn').addEventListener('click', () => modal.classList.add('hidden'));
@@ -981,8 +980,11 @@
             document.getElementById('saveConfigBtn').addEventListener('click', async () => {
                 const val = document.getElementById('firebaseConfigInput').value.trim();
                 try {
-                    JSON.parse(val); // validate json
-                    localStorage.setItem('studypulse_firebase_config', val);
+                    const parsedConfig = parseFirebaseInput(val);
+                    if (!parsedConfig || !parsedConfig.apiKey) {
+                        throw new Error("Missing apiKey in configuration");
+                    }
+                    localStorage.setItem('studytracker_firebase_config', JSON.stringify(parsedConfig));
                     modal.classList.add('hidden');
                     showToast('Connecting to Firebase...');
                     await initFirebase();
@@ -992,16 +994,15 @@
             });
 
             document.getElementById('clearConfigBtn').addEventListener('click', () => {
-                localStorage.removeItem('studypulse_firebase_config');
+                localStorage.removeItem('studytracker_firebase_config');
                 document.getElementById('firebaseConfigInput').value = '';
                 modal.classList.add('hidden');
                 state.db = null;
-                document.getElementById('syncStatus').textContent = 'Local Storage Mode';
+                document.getElementById('syncStatus').textContent = 'Local Mode';
                 showToast('Firebase Config Cleared');
             });
         }
 
-        // Window Load Handler
         window.onload = async function() {
             loadLocalData();
             setupEventListeners();
